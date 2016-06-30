@@ -170,4 +170,9 @@ eurecaServer.exports.disconnected = function (id) {
 }
 
 
-server.listen(8000);
+/*https.createServer({
+    key: privateKey,
+    cert: certificate
+}, server).listen(8000, '192.168.1.100');*/
+
+server.listen(process.env.PORT || 8000);
