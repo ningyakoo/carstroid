@@ -10,7 +10,7 @@ app.use(express.static(__dirname));
 var Eureca = require('eureca.io');
 
 //create an instance of EurecaServer
-var eurecaServer = new Eureca.Server({allow:['setId', 'spawnEnemy', 'kill', 'updateState', 'createNewSpikeball']});
+var eurecaServer = new Eureca.Server({allow:['setId', 'spawnEnemy', 'kill', 'ready', 'updateState', 'createNewSpikeball']});
 var clients = {};
 var primero = false;
 var count = 0;
@@ -116,6 +116,7 @@ eurecaServer.exports.handshake = function()
 
 			remote.spawnEnemy(clients[cc].id, data);		
 		}
+		//remote.ready();
 	}
 }
 

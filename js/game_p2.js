@@ -13,11 +13,9 @@ var eurecaClientSetup = function() {
 	{
 		myId = id;
 		primero = bol;
-		if(skin > 0){
-			eurecaServer.handshake();
-			create();	
-			ready = true;
-		}
+		eurecaServer.handshake();
+		create();	
+		ready = true;
 	}	
 
 	eurecaClient.exports.kill = function(id)
@@ -27,6 +25,15 @@ var eurecaClientSetup = function() {
 			delete carsList[id];
 			console.log('killing ', id, carsList[id]);
 		}
+	}
+
+	eurecaClient.exports.ready = function()
+	{
+		if(!ready){
+			create();	
+			ready = true;
+		}
+		
 	}
 
 	eurecaClient.exports.spawnEnemy = function(i, data)
@@ -50,13 +57,17 @@ var eurecaClientSetup = function() {
 	eurecaClient.exports.updateState = function(id, state)
 	{
 		if (carsList[id])  {
-			if(state.bol){
+			//if(state.bol){
+			if(carsList[id].cursor != state)
 				carsList[id].cursor = state;
+			if(Math.abs(carsList[id].car.body.x - state.x) > 15)
 				carsList[id].car.body.x = state.x;
+			if(Math.abs(carsList[id].car.body.y - state.y) > 15)
 				carsList[id].car.body.y = state.y;
+			//if(Math.abs(carsList[id].car.body.rotation - state.angle) > 1)
 				carsList[id].car.body.rotation = state.angle;
 				
-			}
+			//}
 			carsList[id].skin = state.skin;
 			carsList[id].turret.rotation = state.rot;
 			if(carsList[id].car){
@@ -148,7 +159,7 @@ Car = function (index, game, player, data, grupo1, grupo2, grupo3, grupo4) {
     this.spikes = data.spikes;
     this.energy = 360;
     this.newSpike = [];
-    this.boxes = [];
+    this.boxes = data.box;
     this.balls = [];
 
     this.shadow = game.add.sprite(data.x, data.y, 'shadow');
@@ -172,6 +183,7 @@ Car = function (index, game, player, data, grupo1, grupo2, grupo3, grupo4) {
 	this.car.body.collides(grupo2, hitPlayer, this);
 	this.car.body.collides(itemsCollisionGroup, hitItems, this);
 	this.car.body.collides([grupo4, boxCollisionGroup]);
+	//this.car.body.collides(boxCollisionGroup, playerHitBox, this);
 	this.car.body.collideWorldBounds = true;
     //this.car.body.setRectangle(50, 100); 
     //this.car.physicsBodyType = Phaser.Physics.P2JS;
@@ -269,8 +281,8 @@ Car.prototype.update = function() {
 	}
 
     var angle = this.car.body.rotation + (Math.PI / 2);
-    this.car.body.velocity.x = -(Math.round((this.car.currentSpeed * 0.016)*60) * Math.cos(angle));
-    this.car.body.velocity.y = -(Math.round((this.car.currentSpeed * 0.016)*60) * Math.sin(angle));
+    this.car.body.velocity.x = -(this.car.currentSpeed * Math.cos(angle));
+    this.car.body.velocity.y = -(this.car.currentSpeed * Math.sin(angle));
 
     this.shadow.x = this.car.x;
     this.shadow.y = this.car.y;
@@ -395,7 +407,7 @@ function create(){
 	textPlayersName = [];
     explosions = nBack.game.add.group();	
 
-	var data = {x: 1000, y: 1000, angle: 0, rotation: 0, skin: skin, name: name, spikes: [], points: 0, gasoline: 260}
+	var data = {x: 1000, y: 1000, angle: 0, rotation: 0, skin: skin, name: name, spikes: [], box: [], points: 0, gasoline: 260}
 	player = new Car(myId, nBack.game, car, data, bulletsCollisionGroup, carCollisionGroup, bulletsEnemyCollisionGroup, playerCollisionGroup);
 	carsList[myId] = player;
 	car = player.car;
@@ -413,8 +425,9 @@ function create(){
   	spikeballs = [];
 
   	listBox = nBack.game.add.group();
+  	listBox.enableBody = true;
     listBox.physicsBodyType = Phaser.Physics.P2JS;
-    listBox.enableBody = true;
+    
 
     listBalls = nBack.game.add.group();
     listBalls.enableBody = true;
@@ -436,6 +449,8 @@ function create(){
 			createBalls(data, 0.1, i);
 		}
   	}
+
+
 
   	barEnergy = nBack.game.add.graphics(0, 0);
     barEnergy.lineStyle(6, 0x00CC00);
@@ -488,105 +503,12 @@ function create(){
 
     marco.scale.setTo(1*sc, 1*sc);
 
-    nBack.game.time.events.loop(40, act, this);
-    nBack.game.time.events.loop(1000, act2, this);
+    //nBack.game.time.events.loop(40, act, this);
+    nBack.game.time.events.loop(40, act2, this);
 }
 
 
-function hitBullet(body1, body2) {
 
-   	//body1.sprite.kill();
-   	var c = body1.sprite;
-   	if(carsList[c.id]){
-   		carsList[c.id].kill();
-   		//delete carsList[c.id];
-   	}
-   	
-   	body2.sprite.kill(); 	
-	
-	var kaboom = explosions.create(c.body.x, c.body.y, 'kaboom2');
-	kaboom.scale.setTo(1, 1);
-	kaboom.anchor.set(0.5);
-    kaboom.animations.add('kaboom2');
-    kaboom.play('kaboom2', 33, false);
-
-	//nBack.game.time.events.repeat(Phaser.Timer.SECOND*1.5, 1, function(){removeAnimation(kaboom)}, this);
-
-	if(c.id == myId){
-		
-		//player.kill();
-		barEnergy.clear();
-		barEnergy.destroy();
-			
-		nBack.game.time.events.repeat(Phaser.Timer.SECOND*2, 1, function(){
-					
-		eurecaServer.disconnected(myId);
-		nBack.game.destroy();
-		//myId = 0;
-		nBack.game = new Phaser.Game(window.outerWidth, window.outerHeight, Phaser.CANVAS, 'gamediv');
-
-		nBack.game.state.add('Boot', nBack.Boot);
-		nBack.game.state.add('Preload', nBack.Preload);
-		nBack.game.state.add('Menu', nBack.Menu);
-		nBack.game.state.add('Game', nBack.Game);
-
-		nBack.game.state.start('Boot');
-		//nBack.game.stateTransition.to('Preload');
-		
-		//nBack.game.state.start('Menu');
-	}, this);
-	}
-    
-    //console.log(body1.sprite.id)
-
-}
-
-function hitPlayer(body1, body2) {
-
-    //  body1 is the space ship (as it's the body that owns the callback)
-    //  body2 is the body it impacted with, in this case our panda
-    //  As body2 is a Phaser.Physics.P2.Body object, you access its own (the sprite) via the sprite property:
-	if(body1.sprite.id != myId){
-   		//body1.sprite.kill();
-   		//body2.sprite.kill();
-   	}
-    
-    console.log(body1.sprite.id)
-
-}
-
-function hitBox(body1, body2) {
-	body1.sprite.kill();
-
-	player.boxes.splice(body2.sprite.id, 1);
-   	body2.sprite.kill();
-   	player.input.box = player.boxes;
-}
-
-function hitItems(body1, body2) {
-	
-	if(body2.sprite.name == 'ball'){
-		if(body1.sprite.id == myId){
-
-			body1.sprite.gasoline += 15;
-			body1.sprite.points += 5;			
-			
-			/*if(player.gasoline >= 260)
-				car.currentSpeed = 560;*/
-			//player.points += 5;
-			player.input.points = body1.sprite.points;
-			player.input.gasoline = body1.sprite.gasoline;
-			console.log(body1.sprite.gasoline);
-
-		}
-		player.balls.splice(body2.sprite.id, 1);
-		body2.sprite.kill();
-		player.input.balls = player.balls;
-	}
-
-
-	
-}
 
 
 function update(){
@@ -603,9 +525,9 @@ function update(){
 
 	turret.rotation = nBack.game.physics.arcade.angleToPointer(turret);
 	//nBack.game.physics.arcade.velocityFromRotation(car.rotation, car.currentSpeed, car.body.velocity)
-	var angle = car.body.rotation + (Math.PI / 2);
+	/*var angle = car.body.rotation + (Math.PI / 2);
     car.body.velocity.x = -(car.currentSpeed * Math.cos(angle));
-    car.body.velocity.y = -(car.currentSpeed * Math.sin(angle));
+    car.body.velocity.y = -(car.currentSpeed * Math.sin(angle));*/
 	//land.tilePosition.x = -nBack.game.camera.x;
 	//land.tilePosition.y = -nBack.game.camera.y;
 
@@ -659,6 +581,48 @@ function update(){
     	posY += 40;
     	textPlayersName.push(text);
     }
+
+    if(!primero){
+    	if(listBox.length<=0){
+	  		console.log(carsList)
+			for(var i in carsList)
+			{
+
+				console.log(myId)
+				console.log(carsList[i].car.id)
+				if(carsList[i].car.id != myId){
+					console.log('2')
+					if (!carsList[i]) continue;
+					console.log('3')
+					for(var j=0; j < carsList[i].boxes.length;j++)
+					{	
+						var box = carsList[i].boxes[j];
+						var data = {x: box.x, y: box.y, rot: box.rot}
+						createBox(data, 0.1);
+					}
+					break;
+				}
+			}
+    	}
+
+    	if(listBalls.length<=0){
+			for(var i in carsList)
+			{
+				if(carsList[i].car.id != myId){
+					if (!carsList[i]) continue;
+					for(var j=0; j < carsList[i].balls.length;j++)
+					{	
+						var ball = carsList[i].balls[j];
+						var data = {x: ball.x, y: ball.y, frame: ball.frame}
+						createBalls(data, 0.1);
+					}
+					break;
+				}
+			}
+		}
+    }
+
+	
     
     // Colision
 	/*for (var i in carsList)
@@ -696,10 +660,11 @@ function update(){
 			carsList[j].update();
 		}	
 	}
+
     
 	//player.spikes = datosSpikeballs;
 
-    if(!primero && spikeballs.length<=0){  	
+    /*if(!primero && spikeballs.length<=0){  	
   		for(var i in carsList){
   			if(carsList[i].car.id != myId){
 		  		//for (var j = 0; j < 50; j++)
@@ -743,18 +708,15 @@ function update(){
 		{
 			nBack.game.add.tween(spikeballs[i]).to( { alpha: 1 }, 1000, "Linear", true);
 		}
-	}
+	}*/
 	
-	for (var i = 0; i< spikeballs.length; i++) {
+	/*for (var i = 0; i< spikeballs.length; i++) {
 		datosSpikeballs[i].x = spikeballs[i].x
 		datosSpikeballs[i].y = spikeballs[i].y
 		datosSpikeballs[i].vx = spikeballs[i].body.velocity.x;
 		datosSpikeballs[i].vy = spikeballs[i].body.velocity.y;
 		datosSpikeballs[i].health = spikeballs[i].health;	
-	}
-
-	// Boxes //
-	
+	}*/
 
 	// Energy //
 	if(player.alive){
@@ -794,144 +756,101 @@ function update(){
     marco.anchor.set(0.5);
 	marco.scale.setTo(1*sc, 1*sc);	
 
-	if(!primero && listBox.length<=0 && player.boxes){
-		for(var i in carsList)
-		{
-			if(carsList[i].car.id != myId){
-				if (!carsList[i]) continue;
-				for(var j=0; j < carsList[i].boxes.length;j++)
-				{	
-					var box = carsList[i].boxes[j];
-					var data = {x: box.x, y: box.y, rot: box.rot}
-					createBox(data, 0.1);
-				}
-				break;
-			}
-		}
-	}
-
-	if(!primero && listBalls.length<=0 && player.balls){
-		for(var i in carsList)
-		{
-			if(carsList[i].car.id != myId){
-				if (!carsList[i]) continue;
-				for(var j=0; j < carsList[i].balls.length;j++)
-				{	
-					var ball = carsList[i].balls[j];
-					var data = {x: ball.x, y: ball.y, frame: ball.frame}
-					createBalls(data, 0.1);
-				}
-				break;
-			}
-		}
-	}
-
-	/*var c = 0;
-	if(player.boxes && player.boxes.length>0){
-		listBox.forEach(function(box){
-			player.boxes[c].x = box.x
-			player.boxes[c].y = box.y
-			player.boxes[c].rot = box.body.rotation
-		
-			c++;
-	    });
-	}*/
-
-	/*var c = 0;
-	if(player.balls && player.balls.length>0){
-		listBalls.forEach(function(ball){
-			player.balls[c].x = ball.x;
-			player.balls[c].y = ball.y;
-			player.balls[c].frame = ball.frame;
-		
-			c++;
-	    });
-	}*/
-
+	
 	listBox.forEach(function(box){
 		box.body.setZeroVelocity();
 		box.body.setZeroRotation();
 	});
 
+	
+
+	//player.input.box = player.boxes;
+
 	//eurecaServer.update(spikeballs.length);
 
 }
 
-function checkOverlap(spriteA, spriteB) {
+function hitBullet (body1, body2) {
 
-    var boundsA = spriteA.getBounds();
-    var boundsB = spriteB.getBounds();
+    //body1.sprite.kill();
+        var c = body1.sprite;
+        if(carsList[c.id]){
+            carsList[c.id].kill();
+            //delete nBack.carsList[c.id];
+        }
+        
+        body2.sprite.kill();    
+        console.log(explosions);
+        var kaboom = explosions.create(c.body.x, c.body.y, 'kaboom2');
+        kaboom.scale.setTo(1, 1);
+        kaboom.anchor.set(0.5);
+        kaboom.animations.add('kaboom2');
+        kaboom.play('kaboom2', 33, false);
 
-    return Phaser.Rectangle.intersects(boundsA, boundsB);
+        nBack.game.time.events.repeat(Phaser.Timer.SECOND*1.5, 1, function(){removeAnimation(kaboom)}, this);
+
+        if(c.id == myId){ 
+            //player.kill();
+            barEnergy.clear();
+            barEnergy.destroy();
+                
+            nBack.game.time.events.repeat(Phaser.Timer.SECOND*2, 1, function(){
+                        
+            eurecaServer.disconnected(myId);
+            nBack.game.destroy();
+            //nBack.myId = 0;
+            nBack.game = new Phaser.Game(window.outerWidth, window.outerHeight, Phaser.CANVAS, 'gamediv');
+
+            nBack.game.state.add('Boot', nBack.Boot);
+            nBack.game.state.add('Preload', nBack.Preload);
+            nBack.game.state.add('Menu', nBack.Menu);
+            nBack.game.state.add('Game', nBack.Game);
+
+            nBack.game.state.start('Boot');
+
+            }, this);
+        }
+}
+
+function hitPlayer (body1, body2) {
+
+    if(body1.sprite.id != nBack.myId){
+        //body1.sprite.kill();
+        //body2.sprite.kill();
+    }
+    
+    console.log(body1.sprite.id)
 
 }
 
-function bulletHitPlayer (car, bullet) {
+function hitBox (body1, body2) {
+    console.log("ENTRA")
+    body1.sprite.kill();
 
-    bullet.kill();
-    console.log("ENTRA");
+    player.boxes.splice(body2.sprite.id, 1);
+    body2.sprite.kill();
+    player.input.box = player.boxes;
+    //nBack.eurecaServer.handleKeys(this.input);
 }
 
-function PlayerHitPlayer (car, car2) {
-	nBack.game.camera.shake(0.008, 180);
+
+function hitItems (body1, body2) {
+    if(body2.sprite.name == 'ball'){
+        if(body1.sprite.id == myId){
+            body1.sprite.gasoline += 15;
+            body1.sprite.points += 5;           
+            player.input.points = body1.sprite.points;
+            player.input.gasoline = body1.sprite.gasoline;
+            //console.log(body1.sprite.gasoline);
+
+        }
+        player.balls.splice(body2.sprite.id, 1);
+        body2.sprite.kill();
+        player.input.balls = player.balls;
+    }
+    //eurecaServer.handleKeys(player.input);
 }
 
-function PlayerHitSpikeball (car, spike) {
-	carsList[car.id].kill();
-	delete carsList[car.id];
-	
-	var kaboom = explosions.create(car.x, car.y, 'kaboom2');
-	kaboom.scale.setTo(1, 1);
-	kaboom.anchor.set(0.5);
-    kaboom.animations.add('kaboom2');
-    kaboom.play('kaboom2', 33, false);
-
-	nBack.game.time.events.repeat(Phaser.Timer.SECOND*1.5, 1, function(){removeAnimation(kaboom)}, this);
-
-	if(car.id == myId){
-		
-		//player.kill();
-		barEnergy.clear();
-		barEnergy.destroy();
-			
-		nBack.game.time.events.repeat(Phaser.Timer.SECOND*2, 1, function(){
-		//player.alive = false;			
-		eurecaServer.disconnected(myId);
-		nBack.game.destroy();
-		//myId = 0;
-		nBack.game = new Phaser.Game(window.outerWidth, window.outerHeight, Phaser.CANVAS, 'gamediv');
-
-		nBack.game.state.add('Boot', nBack.Boot);
-		nBack.game.state.add('Preload', nBack.Preload);
-		nBack.game.state.add('Menu', nBack.Menu);
-		nBack.game.state.add('Game', nBack.Game);
-
-		nBack.game.state.start('Boot');
-		//nBack.game.stateTransition.to('Preload');
-		
-		//nBack.game.state.start('Menu');
-	}, this);
-	}
-
-	
-}
-
-function bulletHitSpikeball (sp, bullet) {
-	bullet.kill();
-	sp.health -= 1;
-	if(sp.health <= 0){		
-		var kaboom = explosions.create(sp.x, sp.y, 'kaboom');
-		kaboom.scale.setTo(sp.size/1.5, sp.size/1.5);
-		//kaboom.anchor.set(0.5);
-    	kaboom.animations.add('kaboom');
-    	kaboom.play('kaboom', 25, false);
-    	//sp.alive = false;
-    	//datosSpikeballs[sp.id].alive = false;
-		sp.kill();
-		//createSpikeball();
-		nBack.game.time.events.repeat(Phaser.Timer.SECOND*1.3, 1, function(){removeAnimation(kaboom)}, this);
-	}
-}
 
 function removeAnimation(sprite){
 	explosions.remove(sprite, true);
@@ -1022,6 +941,7 @@ function act2(){
 		player.input.rot = player.turret.rotation;
 		player.input.spikes = player.spikes;	
 		player.input.gasoline = car.gasoline;
+		player.input.box = player.boxes;
 		player.input.bol = true;	
 	
 		eurecaServer.handleKeys(player.input);
@@ -1068,6 +988,7 @@ function createBox(data, alpha, id){
 	box.id = id;
 	box.alpha = alpha
     box.body.setRectangle(95, 95);
+    box.body.static = true;
     box.body.setCollisionGroup(boxCollisionGroup);
     box.body.collides([boxCollisionGroup, playerCollisionGroup]);
     box.body.collides([boxCollisionGroup, carCollisionGroup]);
